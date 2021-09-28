@@ -6,10 +6,13 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/gocolly/colly"
 )
+
+type Article struct {
+	Title string
+}
 
 func main() {
 	// Instantiate default collector
@@ -28,13 +31,25 @@ func main() {
 		url := "https://www.cambridge.org/core/search?q=cambrian%20brachiopod*&aggs%5BproductJournal%5D%5Bfilters%5D=56B1B6F705BBEC4F8958383925A06535&pageNum=" + strconv.Itoa(pageNum)
 		c := colly.NewCollector()
 		// On every a element which has href attribute call callback
-		c.OnHTML("a.part-link", func(e *colly.HTMLElement) {
-			title := strings.Trim(e.Text, "\n")
-			link := e.Attr("href")
-			sum++
-			// Print link
-			fmt.Printf("Link found: %q -> %s\n", title, link)
 
+		//列表爬取
+		c.OnHTML("a.part-link", func(e *colly.HTMLElement) {
+			// title := strings.Trim(e.Text, "\n")
+			link := e.Attr("href")
+			// Print link
+			//fmt.Printf("Link found: %q -> %s\n", title, link)
+			c.Visit(e.Request.AbsoluteURL(link))
+
+		})
+
+		// 进入列表
+		// 爬取 DOI 号
+		// c.OnHTML("div.doi-data>div>a>span.text", func(e *colly.HTMLElement) {
+		// 	fmt.Println(e.Text)
+		// })
+		// 爬取 Title
+		c.OnHTML("div#maincontent>h1", func(e *colly.HTMLElement) {
+			fmt.Println(e.Text)
 		})
 
 		c.OnRequest(func(r *colly.Request) {
