@@ -1,36 +1,40 @@
 package main
 
 import (
-	"encoding/csv"
 	"fmt"
-	"log"
-	"os"
 	"strconv"
+	"strings"
 
 	"github.com/gocolly/colly"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
 )
 
 type Article struct {
-	Title string
+	ID          int `gorm:"primaryKey"`
+	Title       string
+	Author      string
+	Link        string `gorm:"type:text"`
+	JournalInfo string
+	DOI         string
 }
 
 func main() {
-	// Instantiate default collector
-	sum := 0
-	fName := "cambridge.csv"
-	file, err := os.Create(fName)
+
+	// 数据库相关
+	var err error
+	db, err := gorm.Open("mysql", "root:Cyl851106@(127.0.0.1:3306)/cambridge_scraper?charset=utf8mb4&parseTime=True&loc=Local")
 	if err != nil {
-		log.Fatalf("Cannot create file %q: %s\n", fName, err)
-		return
+		panic(err)
 	}
-	defer file.Close()
-	writer := csv.NewWriter(file)
-	defer writer.Flush()
+	defer db.Close()
+
+	// 自动迁移
+	db.AutoMigrate(&Article{})
 
 	goQuery := func(pageNum int) {
 		url := "https://www.cambridge.org/core/search?q=cambrian%20brachiopod*&aggs%5BproductJournal%5D%5Bfilters%5D=56B1B6F705BBEC4F8958383925A06535&pageNum=" + strconv.Itoa(pageNum)
 		c := colly.NewCollector()
-		// On every a element which has href attribute call callback
 
 		//列表爬取
 		c.OnHTML("a.part-link", func(e *colly.HTMLElement) {
@@ -42,14 +46,47 @@ func main() {
 
 		})
 
-		// 进入列表
-		// 爬取 DOI 号
-		// c.OnHTML("div.doi-data>div>a>span.text", func(e *colly.HTMLElement) {
-		// 	fmt.Println(e.Text)
-		// })
-		// 爬取 Title
-		c.OnHTML("div#maincontent>h1", func(e *colly.HTMLElement) {
-			fmt.Println(e.Text)
+		c.OnHTML("div.column__main__left", func(e *colly.HTMLElement) {
+			//fmt.Println(e)
+			article := Article{
+				Title:       "",
+				Link:        "",
+				DOI:         "",
+				Author:      "",
+				JournalInfo: "",
+			}
+			// 爬取 URL 和 Title
+			e.ForEach("div#maincontent>h1", func(i int, e *colly.HTMLElement) {
+				article.Link = e.Request.URL.String()
+				article.Title = e.Text
+			})
+			// 爬取 DOI
+			e.ForEach("div.doi-data>div>a>span.text", func(i int, e *colly.HTMLElement) {
+				article.DOI = e.Text
+				//fmt.Println(e)
+			})
+			// 爬取 Author
+			var author string
+			e.ForEach(".contributor-type__contributor", func(i int, e *colly.HTMLElement) {
+				//article.DOI = e.Text
+
+				e.ForEach("a", func(i int, h *colly.HTMLElement) {
+					author += h.Text + ", "
+				})
+			})
+			article.Author = strings.TrimRight(author, ", ")
+
+			// 爬取 journalInfo
+			var journalInfo string
+			e.ForEach("div.content__journal", func(i int, e *colly.HTMLElement) {
+				e.ForEach("a", func(i int, h *colly.HTMLElement) {
+					journalInfo += h.Text + ", "
+				})
+				//fmt.Println(e)
+			})
+			article.JournalInfo = strings.TrimRight(journalInfo, ", ")
+
+			db.Create(&article)
 		})
 
 		c.OnRequest(func(r *colly.Request) {
@@ -74,6 +111,4 @@ func main() {
 	for i := 1; i <= 34; i++ {
 		goQuery(i)
 	}
-	fmt.Println("===================")
-	fmt.Println(sum)
 }

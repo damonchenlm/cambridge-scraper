@@ -2,7 +2,10 @@ module myApp
 
 go 1.17
 
-require github.com/gocolly/colly v1.2.0
+require (
+	github.com/gocolly/colly v1.2.0
+	github.com/jinzhu/gorm v1.9.16
+)
 
 require (
 	github.com/PuerkitoBio/goquery v1.7.1 // indirect
@@ -19,4 +22,10 @@ require (
 	golang.org/x/net v0.0.0-20210928044308-7d9f5e0b762b // indirect
 	golang.org/x/text v0.3.6 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
+)
+
+require (
+	github.com/go-sql-driver/mysql v1.5.0 // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.2 // indirect
 )
